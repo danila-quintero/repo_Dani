@@ -1,0 +1,776 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Logística Pereira | Optimización con K-Means</title>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <link
+        rel="stylesheet"
+        href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+
+    <style>
+        :root {
+            --primary: #1e40af;
+            --bg: #f1f5f9;
+            --card: #ffffff;
+            --muted: #64748b;
+            --border: #cbd5e1;
+            --success-bg: #dcfce7;
+            --success-text: #166534;
+        }
+
+        body {
+            font-family: 'Inter', system-ui, sans-serif;
+            background: var(--bg);
+            margin: 0;
+            padding: 20px;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: 1fr 2fr;
+            gap: 20px;
+            max-width: 1450px;
+            margin: auto;
+        }
+
+        .card {
+            background: var(--card);
+            padding: 25px;
+            border-radius: 15px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+        }
+
+        h2 {
+            color: var(--primary);
+            margin-top: 0;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        h3 {
+            color: var(--primary);
+            margin-bottom: 10px;
+        }
+
+        h4 {
+            margin: 15px 0 10px 0;
+            color: #0f172a;
+        }
+
+        label {
+            display: block;
+            margin-top: 10px;
+            margin-bottom: 5px;
+            font-weight: 600;
+        }
+
+        textarea,
+        input {
+            width: 100%;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 12px;
+            margin: 6px 0 10px 0;
+            font-family: inherit;
+            box-sizing: border-box;
+            font-size: 14px;
+        }
+
+        button {
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 15px;
+            border-radius: 8px;
+            width: 100%;
+            font-weight: bold;
+            cursor: pointer;
+            transition: 0.3s;
+            margin-top: 12px;
+            font-size: 15px;
+        }
+
+        button:hover {
+            background: #1e3a8a;
+            transform: translateY(-2px);
+        }
+
+        .route-item {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            padding: 15px;
+            border-bottom: 1px solid #f1f5f9;
+            transition: 0.2s;
+        }
+
+        .route-item:hover {
+            background: #f8fafc;
+        }
+
+        .step-number {
+            background: var(--primary);
+            color: white;
+            width: 34px;
+            height: 34px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.9em;
+            flex-shrink: 0;
+        }
+
+        .badge-vial {
+            background: var(--success-bg);
+            color: var(--success-text);
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.8em;
+            white-space: nowrap;
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 20px;
+            color: var(--primary);
+            font-weight: 600;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        .cluster-box {
+            margin-bottom: 20px;
+            padding: 15px;
+            border: 1px solid #e2e8f0;
+            border-radius: 10px;
+            background: #fafcff;
+        }
+
+        .resumen-top {
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: space-around;
+            text-align: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .resumen-item {
+            flex: 1;
+            min-width: 180px;
+            background: #f8fafc;
+            border-radius: 12px;
+            padding: 14px;
+        }
+
+        .resumen-item small {
+            color: var(--muted);
+            display: block;
+            margin-bottom: 6px;
+        }
+
+        .resumen-item h3 {
+            margin: 0;
+            color: #0f172a;
+            font-size: 1.2rem;
+        }
+
+        .nota {
+            font-size: 13px;
+            color: var(--muted);
+            margin-top: 10px;
+            line-height: 1.5;
+        }
+
+        .subgrid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }
+
+        .cluster-metricas {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+            gap: 10px;
+            margin: 12px 0 15px 0;
+        }
+
+        .metrica-box {
+            background: white;
+            border: 1px solid #e2e8f0;
+            border-radius: 10px;
+            padding: 10px;
+        }
+
+        .metrica-box small {
+            display: block;
+            color: var(--muted);
+            margin-bottom: 4px;
+        }
+
+        .metrica-box strong {
+            color: #0f172a;
+            font-size: 15px;
+        }
+
+        .tabla-comparativa,
+        .tabla-detalle {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+            overflow: hidden;
+            border-radius: 10px;
+        }
+
+        .tabla-comparativa th,
+        .tabla-comparativa td,
+        .tabla-detalle th,
+        .tabla-detalle td {
+            border-bottom: 1px solid #e2e8f0;
+            padding: 12px;
+            text-align: left;
+            font-size: 14px;
+        }
+
+        .tabla-comparativa th,
+        .tabla-detalle th {
+            background: #eff6ff;
+            color: var(--primary);
+        }
+
+        .tabla-comparativa tr:hover,
+        .tabla-detalle tr:hover {
+            background: #f8fafc;
+        }
+
+        .detalle-wrap {
+            overflow-x: auto;
+            margin-top: 15px;
+        }
+
+        #mapaRutas {
+            width: 100%;
+            height: 500px;
+            border-radius: 12px;
+            margin-top: 10px;
+        }
+
+        .leyenda-mapa {
+            margin-top: 10px;
+            font-size: 13px;
+            color: var(--muted);
+        }
+
+        @media (max-width: 900px) {
+            .grid {
+                grid-template-columns: 1fr;
+            }
+
+            .subgrid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+
+<div class="grid">
+    <div class="card">
+        <h2><i class="fas fa-truck"></i> Despacho</h2>
+
+        <label>Origen (Depósito / Tienda)</label>
+        <input
+            type="text"
+            id="origen"
+            placeholder="Ej: Carrera 7 # 26-20 Pereira"
+            value="Carrera 7 # 26-20 Pereira"
+        >
+
+        <label>Destinos (uno por línea)</label>
+        <textarea
+            id="destinos"
+            rows="10"
+            placeholder="Calle 14 # 5-32 Pereira&#10;Carrera 8 # 21-15 Pereira&#10;Calle 19 # 9-45 Pereira"
+        ></textarea>
+
+        <label>Número de carteros / clusters</label>
+        <input
+            type="number"
+            id="num_carteros"
+            min="1"
+            value="3"
+        >
+
+        <div class="subgrid">
+            <div>
+                <label>Precio gasolina</label>
+                <input
+                    type="number"
+                    id="precio_gasolina"
+                    min="1"
+                    step="0.01"
+                    value="16000"
+                >
+            </div>
+
+            <div>
+                <label>Rendimiento (km/litro)</label>
+                <input
+                    type="number"
+                    id="rendimiento_km_litro"
+                    min="0.1"
+                    step="0.1"
+                    value="40"
+                >
+            </div>
+
+            <div>
+                <label>Salario por hora</label>
+                <input
+                    type="number"
+                    id="salario_hora"
+                    min="1"
+                    step="0.01"
+                    value="7000"
+                >
+            </div>
+
+            <div>
+                <label>Tiempo de servicio por cliente (min)</label>
+                <input
+                    type="number"
+                    id="tiempo_servicio_minutos"
+                    min="0"
+                    step="0.1"
+                    value="5"
+                >
+            </div>
+        </div>
+
+        <button onclick="optimizarRuta()">
+            <i class="fas fa-magic"></i> Calcular Ruta con K-Means
+        </button>
+
+        <div id="loader" class="loading">
+            <i class="fas fa-sync fa-spin"></i> Geocodificando direcciones, agrupando entregas, calculando tiempos reales y generando mapa...
+        </div>
+
+        <div class="nota">
+            Esta versión agrupa con <strong>K-Means</strong>, compara <strong>Vecino</strong>, <strong>ACO</strong> y <strong>Genético</strong>, usa <strong>tiempos reales OSRM</strong> entre puntos y muestra las rutas sobre mapa.
+        </div>
+    </div>
+
+    <div id="resultados" class="hidden">
+        <div class="card resumen-top">
+            <div class="resumen-item">
+                <small>Mejor Algoritmo</small>
+                <h3 id="res-algo">-</h3>
+            </div>
+            <div class="resumen-item">
+                <small>Distancia Total</small>
+                <h3 id="res-dist">0 km</h3>
+            </div>
+            <div class="resumen-item">
+                <small>Tiempo Desplazamiento</small>
+                <h3 id="res-tiempo-despl">0 h</h3>
+            </div>
+            <div class="resumen-item">
+                <small>Tiempo Servicio</small>
+                <h3 id="res-tiempo-serv">0 h</h3>
+            </div>
+            <div class="resumen-item">
+                <small>Tiempo Total</small>
+                <h3 id="res-tiempo">0 h</h3>
+            </div>
+            <div class="resumen-item">
+                <small>Costo Total</small>
+                <h3 id="res-costo">$0</h3>
+            </div>
+            <div class="resumen-item">
+                <small>Número de Clusters</small>
+                <h3 id="res-clusters">0</h3>
+            </div>
+        </div>
+
+        <div class="card" style="margin-top: 20px;">
+            <h2><i class="fas fa-map-marked-alt"></i> Mapa de Rutas</h2>
+            <div id="mapaRutas"></div>
+            <div class="leyenda-mapa">
+                Se visualiza la ruta del algoritmo seleccionado para cada cluster.
+            </div>
+        </div>
+
+        <div class="card" style="margin-top: 20px;">
+            <h2><i class="fas fa-map-signs"></i> Hoja de Ruta por Cluster</h2>
+            <div id="lista-ruta"></div>
+        </div>
+
+        <div class="card" style="margin-top: 20px;">
+            <h2><i class="fas fa-chart-bar"></i> Comparativa por Algoritmo</h2>
+            <canvas id="graficaComparativa"></canvas>
+
+            <table class="tabla-comparativa" id="tablaComparativa">
+                <thead>
+                    <tr>
+                        <th>Algoritmo</th>
+                        <th>Distancia (km)</th>
+                        <th>Tiempo Despl. (h)</th>
+                        <th>Tiempo Serv. (h)</th>
+                        <th>Tiempo Total (h)</th>
+                        <th>Gasolina</th>
+                        <th>Mano de obra</th>
+                        <th>Costo total</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<script>
+    let miGrafica = null;
+    let mapa = null;
+    let capasRutas = [];
+
+    function formatearMoneda(valor) {
+        return "$" + Number(valor).toLocaleString("es-CO", {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2
+        });
+    }
+
+    function formatearHoras(valor) {
+        return Number(valor).toFixed(2) + " h";
+    }
+
+    function formatearMinutos(valor) {
+        return Number(valor).toFixed(2) + " min";
+    }
+
+    async function optimizarRuta() {
+        const origen = document.getElementById('origen').value.trim();
+        const destinos = document.getElementById('destinos').value
+            .split('\n')
+            .map(d => d.trim())
+            .filter(d => d !== "");
+
+        const num_carteros = parseInt(document.getElementById('num_carteros').value);
+        const precio_gasolina = parseFloat(document.getElementById('precio_gasolina').value);
+        const rendimiento_km_litro = parseFloat(document.getElementById('rendimiento_km_litro').value);
+        const salario_hora = parseFloat(document.getElementById('salario_hora').value);
+        const tiempo_servicio_minutos = parseFloat(document.getElementById('tiempo_servicio_minutos').value);
+
+        if (!origen || destinos.length === 0) {
+            alert("Por favor ingresa el origen y al menos un destino.");
+            return;
+        }
+
+        if (!num_carteros || num_carteros < 1) {
+            alert("Ingresa un número válido de carteros.");
+            return;
+        }
+
+        if (!precio_gasolina || precio_gasolina <= 0) {
+            alert("Ingresa un precio de gasolina válido.");
+            return;
+        }
+
+        if (!rendimiento_km_litro || rendimiento_km_litro <= 0) {
+            alert("Ingresa un rendimiento válido en km/litro.");
+            return;
+        }
+
+        if (!salario_hora || salario_hora <= 0) {
+            alert("Ingresa un salario por hora válido.");
+            return;
+        }
+
+        if (tiempo_servicio_minutos < 0) {
+            alert("Ingresa un tiempo de servicio válido.");
+            return;
+        }
+
+        document.getElementById('loader').style.display = "block";
+        document.getElementById('resultados').classList.add('hidden');
+
+        try {
+            const response = await fetch("http://127.0.0.1:8000/ruta-direcciones", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    origen,
+                    destinos,
+                    num_carteros,
+                    precio_gasolina,
+                    rendimiento_km_litro,
+                    salario_hora,
+                    tiempo_servicio_minutos
+                })
+            });
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                throw new Error(data.detail || "Error en el servidor");
+            }
+
+            if (data.error) {
+                throw new Error(data.error);
+            }
+
+            mostrarResultados(data);
+        } catch (e) {
+            alert("Error: " + e.message);
+            console.error(e);
+        } finally {
+            document.getElementById('loader').style.display = "none";
+        }
+    }
+
+    function inicializarMapa() {
+        if (!mapa) {
+            mapa = L.map('mapaRutas').setView([4.8133, -75.6961], 13);
+
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '&copy; OpenStreetMap contributors'
+            }).addTo(mapa);
+        }
+
+        capasRutas.forEach(capa => mapa.removeLayer(capa));
+        capasRutas = [];
+    }
+
+    function dibujarMapa(clusters) {
+        inicializarMapa();
+
+        const colores = [
+            "blue",
+            "red",
+            "green",
+            "orange",
+            "purple",
+            "brown",
+            "black"
+        ];
+
+        let bounds = [];
+
+        clusters.forEach((cluster, index) => {
+            const color = colores[index % colores.length];
+            const puntos = cluster.ruta_coordenadas.map(p => [p.lat, p.lon]);
+
+            if (puntos.length > 0) {
+                const polyline = L.polyline(puntos, {
+                    color: color,
+                    weight: 5,
+                    opacity: 0.8
+                }).addTo(mapa);
+
+                capasRutas.push(polyline);
+
+                cluster.ruta_coordenadas.forEach((punto, i) => {
+                    const texto = i === 0
+                        ? `Origen - ${punto.nombre}`
+                        : `Cluster ${cluster.cluster} | Parada ${i} - ${punto.nombre}`;
+
+                    const marker = L.marker([punto.lat, punto.lon])
+                        .addTo(mapa)
+                        .bindPopup(texto);
+
+                    capasRutas.push(marker);
+                    bounds.push([punto.lat, punto.lon]);
+                });
+            }
+        });
+
+        if (bounds.length > 0) {
+            mapa.fitBounds(bounds, { padding: [30, 30] });
+        }
+
+        setTimeout(() => {
+            mapa.invalidateSize();
+        }, 200);
+    }
+
+    function mostrarResultados(data) {
+        document.getElementById('resultados').classList.remove('hidden');
+
+        document.getElementById('res-dist').innerText = Number(data.distancia_total_km).toFixed(2) + " km";
+        document.getElementById('res-tiempo-despl').innerText = formatearHoras(data.tiempo_desplazamiento_horas);
+        document.getElementById('res-tiempo-serv').innerText = formatearHoras(data.tiempo_servicio_horas);
+        document.getElementById('res-tiempo').innerText = formatearHoras(data.tiempo_total_horas);
+        document.getElementById('res-costo').innerText = formatearMoneda(data.costo_total);
+        document.getElementById('res-clusters').innerText = data.num_clusters;
+        document.getElementById('res-algo').innerText = data.mejor_algoritmo;
+
+        const lista = document.getElementById('lista-ruta');
+        lista.innerHTML = "";
+
+        data.clusters.forEach(cluster => {
+            const htmlCluster = `
+                <div class="cluster-box">
+                    <h3>Cluster ${cluster.cluster}</h3>
+
+                    <div class="cluster-metricas">
+                        <div class="metrica-box">
+                            <small>Distancia</small>
+                            <strong>${Number(cluster.distancia_km).toFixed(2)} km</strong>
+                        </div>
+                        <div class="metrica-box">
+                            <small>Tiempo desplazamiento</small>
+                            <strong>${formatearHoras(cluster.tiempo_desplazamiento_horas)}</strong>
+                        </div>
+                        <div class="metrica-box">
+                            <small>Tiempo servicio</small>
+                            <strong>${formatearHoras(cluster.tiempo_servicio_horas)}</strong>
+                        </div>
+                        <div class="metrica-box">
+                            <small>Tiempo total</small>
+                            <strong>${formatearHoras(cluster.tiempo_horas)}</strong>
+                        </div>
+                        <div class="metrica-box">
+                            <small>Gasolina</small>
+                            <strong>${formatearMoneda(cluster.costo_gasolina)}</strong>
+                        </div>
+                        <div class="metrica-box">
+                            <small>Mano de obra</small>
+                            <strong>${formatearMoneda(cluster.costo_mano_obra)}</strong>
+                        </div>
+                        <div class="metrica-box">
+                            <small>Costo total</small>
+                            <strong>${formatearMoneda(cluster.costo_total)}</strong>
+                        </div>
+                    </div>
+
+                    ${cluster.ruta_nombres.map((nombre, index) => `
+                        <div class="route-item">
+                            <div class="step-number">
+                                ${index === 0 ? '<i class="fas fa-home"></i>' : index}
+                            </div>
+                            <div style="flex-grow:1">
+                                <strong>${nombre}</strong><br>
+                                <small style="color:#64748b">
+                                    ${index === 0 ? 'Punto de Inicio' : 'Punto de Entrega'}
+                                </small>
+                            </div>
+                            ${index > 0 ? `<span class="badge-vial">Cluster ${cluster.cluster}</span>` : ''}
+                        </div>
+                    `).join("")}
+
+                    <div class="detalle-wrap">
+                        <h4>Detalle de tiempos por cliente</h4>
+                        <table class="tabla-detalle">
+                            <thead>
+                                <tr>
+                                    <th>Orden</th>
+                                    <th>Nombre</th>
+                                    <th>Tipo</th>
+                                    <th>Distancia desde anterior (km)</th>
+                                    <th>Tiempo viaje (min)</th>
+                                    <th>Tiempo servicio (min)</th>
+                                    <th>Llegada (min)</th>
+                                    <th>Salida (min)</th>
+                                    <th>Acumulado (min)</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${cluster.detalle_clientes.map(item => `
+                                    <tr>
+                                        <td>${item.orden}</td>
+                                        <td>${item.nombre}</td>
+                                        <td>${item.tipo}</td>
+                                        <td>${Number(item.distancia_desde_anterior_km).toFixed(2)}</td>
+                                        <td>${formatearMinutos(item.tiempo_viaje_min)}</td>
+                                        <td>${formatearMinutos(item.tiempo_servicio_min)}</td>
+                                        <td>${formatearMinutos(item.tiempo_llegada_min)}</td>
+                                        <td>${formatearMinutos(item.tiempo_salida_min)}</td>
+                                        <td>${formatearMinutos(item.tiempo_acumulado_min)}</td>
+                                    </tr>
+                                `).join("")}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            `;
+
+            lista.innerHTML += htmlCluster;
+        });
+
+        actualizarGrafica(data.comparativa);
+        actualizarTabla(data.comparativa);
+        dibujarMapa(data.clusters);
+    }
+
+    function actualizarGrafica(comparativa) {
+        const canvas = document.getElementById('graficaComparativa');
+        const ctx = canvas.getContext('2d');
+
+        if (miGrafica) {
+            miGrafica.destroy();
+        }
+
+        miGrafica = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: comparativa.map(c => c.algoritmo),
+                datasets: [
+                    {
+                        label: 'Costo total',
+                        data: comparativa.map(c => c.costo_total)
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: {
+                        display: true
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true
+                    }
+                }
+            }
+        });
+    }
+
+    function actualizarTabla(comparativa) {
+        const tbody = document.querySelector("#tablaComparativa tbody");
+        tbody.innerHTML = "";
+
+        comparativa.forEach(item => {
+            const fila = `
+                <tr>
+                    <td>${item.algoritmo}</td>
+                    <td>${Number(item.distancia_km).toFixed(2)}</td>
+                    <td>${Number(item.tiempo_desplazamiento_horas).toFixed(2)}</td>
+                    <td>${Number(item.tiempo_servicio_horas).toFixed(2)}</td>
+                    <td>${Number(item.tiempo_horas).toFixed(2)}</td>
+                    <td>${formatearMoneda(item.costo_gasolina)}</td>
+                    <td>${formatearMoneda(item.costo_mano_obra)}</td>
+                    <td><strong>${formatearMoneda(item.costo_total)}</strong></td>
+                </tr>
+            `;
+            tbody.innerHTML += fila;
+        });
+    }
+</script>
+
+</body>
+</html>
