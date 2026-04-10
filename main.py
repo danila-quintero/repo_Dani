@@ -23,7 +23,7 @@ class RequestDirecciones(BaseModel):
     num_carteros: int = 2
     precio_gasolina: float = 16000
     rendimiento_km_litro: float = 40
-    salario_hora: float = 7000
+    salario_hora: float = 7959
     tiempo_servicio_minutos: float = 5
 
 

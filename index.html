@@ -555,56 +555,59 @@
     }
 
     function dibujarMapa(clusters) {
-        inicializarMapa();
+    inicializarMapa();
 
-        const colores = [
-            "blue",
-            "red",
-            "green",
-            "orange",
-            "purple",
-            "brown",
-            "black"
-        ];
+    const colores = [
+        "blue",
+        "red",
+        "green",
+        "orange",
+        "purple",
+        "brown",
+        "black"
+    ];
 
-        let bounds = [];
+    let bounds = [];
 
-        clusters.forEach((cluster, index) => {
-            const color = colores[index % colores.length];
-            const puntos = cluster.ruta_coordenadas.map(p => [p.lat, p.lon]);
+    clusters.forEach((cluster, index) => {
+        const color = colores[index % colores.length];
 
-            if (puntos.length > 0) {
-                const polyline = L.polyline(puntos, {
-                    color: color,
-                    weight: 5,
-                    opacity: 0.8
-                }).addTo(mapa);
+        const geometria = cluster.geometria_ruta || [];
 
-                capasRutas.push(polyline);
+        if (geometria.length > 0) {
+            const polyline = L.polyline(geometria, {
+                color: color,
+                weight: 5,
+                opacity: 0.85
+            }).addTo(mapa);
 
-                cluster.ruta_coordenadas.forEach((punto, i) => {
-                    const texto = i === 0
-                        ? `Origen - ${punto.nombre}`
-                        : `Cluster ${cluster.cluster} | Parada ${i} - ${punto.nombre}`;
+            capasRutas.push(polyline);
 
-                    const marker = L.marker([punto.lat, punto.lon])
-                        .addTo(mapa)
-                        .bindPopup(texto);
-
-                    capasRutas.push(marker);
-                    bounds.push([punto.lat, punto.lon]);
-                });
-            }
-        });
-
-        if (bounds.length > 0) {
-            mapa.fitBounds(bounds, { padding: [30, 30] });
+            geometria.forEach(p => bounds.push(p));
         }
 
-        setTimeout(() => {
-            mapa.invalidateSize();
-        }, 200);
+        cluster.ruta_coordenadas.forEach((punto, i) => {
+            const texto = i === 0
+                ? `Origen - ${punto.nombre}`
+                : `Cluster ${cluster.cluster} | Parada ${i} - ${punto.nombre}`;
+
+            const marker = L.marker([punto.lat, punto.lon])
+                .addTo(mapa)
+                .bindPopup(texto);
+
+            capasRutas.push(marker);
+            bounds.push([punto.lat, punto.lon]);
+        });
+    });
+
+    if (bounds.length > 0) {
+        mapa.fitBounds(bounds, { padding: [30, 30] });
     }
+
+    setTimeout(() => {
+        mapa.invalidateSize();
+    }, 200);
+}
 
     function mostrarResultados(data) {
         document.getElementById('resultados').classList.remove('hidden');
